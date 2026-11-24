@@ -5,5 +5,3 @@ dist
 .env
 .env.local
 .env.production
-public/video/
-public/images/
