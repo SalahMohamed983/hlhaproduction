@@ -1,4 +1,5 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://hlhaproduction.runasp.net';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:7177';
+// export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://hlhaproduction.runasp.net';
 
 export function mediaSrc(url) {
   if (!url) return '';
