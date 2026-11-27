@@ -181,15 +181,16 @@ function PrintReport({ clients, reportTitle, dateFrom, dateTo, onClose }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'right' }}>
             <thead>
               <tr style={{ background: '#1e293b', color: '#ffffff' }}>
-                <th style={{ width: '4%', padding: '10px 6px', textAlign: 'center', border: '1px solid #334155' }}>#</th>
-                <th style={{ width: '16%', padding: '10px 10px', border: '1px solid #334155' }}>العميل</th>
-                <th style={{ width: '16%', padding: '10px 10px', border: '1px solid #334155' }}>الشركة / الهاتف</th>
-                <th style={{ width: '18%', padding: '10px 10px', border: '1px solid #334155' }}>الخدمة المقدمة</th>
-                <th style={{ width: '10%', padding: '10px 8px', textAlign: 'center', border: '1px solid #334155' }}>التاريخ</th>
-                <th style={{ width: '11%', padding: '10px 8px', textAlign: 'center', border: '1px solid #334155' }}>المبلغ الإجمالي</th>
-                <th style={{ width: '11%', padding: '10px 8px', textAlign: 'center', border: '1px solid #334155' }}>المدفوع</th>
-                <th style={{ width: '11%', padding: '10px 8px', textAlign: 'center', border: '1px solid #334155' }}>المتبقي</th>
-                <th style={{ width: '11%', padding: '10px 8px', textAlign: 'center', border: '1px solid #334155' }}>الحالة</th>
+                <th style={{ width: '3%', padding: '10px 4px', textAlign: 'center', border: '1px solid #334155' }}>#</th>
+                <th style={{ width: '14%', padding: '10px 8px', border: '1px solid #334155' }}>العميل</th>
+                <th style={{ width: '14%', padding: '10px 8px', border: '1px solid #334155' }}>الشركة / الهاتف</th>
+                <th style={{ width: '13%', padding: '10px 8px', textAlign: 'center', border: '1px solid #334155' }}>فترة الاشتراك</th>
+                <th style={{ width: '15%', padding: '10px 8px', border: '1px solid #334155' }}>الخدمة المقدمة</th>
+                <th style={{ width: '9%', padding: '10px 8px', textAlign: 'center', border: '1px solid #334155' }}>التاريخ</th>
+                <th style={{ width: '10%', padding: '10px 8px', textAlign: 'center', border: '1px solid #334155' }}>المبلغ الإجمالي</th>
+                <th style={{ width: '10%', padding: '10px 8px', textAlign: 'center', border: '1px solid #334155' }}>المدفوع</th>
+                <th style={{ width: '10%', padding: '10px 8px', textAlign: 'center', border: '1px solid #334155' }}>المتبقي</th>
+                <th style={{ width: '8%', padding: '10px 8px', textAlign: 'center', border: '1px solid #334155' }}>الحالة</th>
               </tr>
             </thead>
             <tbody>
@@ -210,6 +211,9 @@ function PrintReport({ clients, reportTitle, dateFrom, dateTo, onClose }) {
                         {c.company && <div style={{ fontWeight: '600' }}>{c.company}</div>}
                         {c.phone && <div style={{ fontSize: '10px', color: '#64748b' }}>{c.phone}</div>}
                         {!c.company && !c.phone && '—'}
+                      </td>
+                      <td style={{ padding: '8px 8px', border: '1px solid #e2e8f0', textAlign: 'center', fontSize: '10px', color: '#475569' }}>
+                        {c.subscriptionStart ? `${c.subscriptionStart} إلى ${c.subscriptionEnd || '—'}` : '—'}
                       </td>
                       <td colSpan={2} style={{ padding: '8px 10px', border: '1px solid #e2e8f0', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
                         لا توجد طلبات مفصّلة مسجلة
@@ -256,6 +260,9 @@ function PrintReport({ clients, reportTitle, dateFrom, dateTo, onClose }) {
                             {c.phone && <div style={{ fontSize: '10px', color: '#64748b' }}>{c.phone}</div>}
                             {!c.company && !c.phone && <span style={{ color: '#94a3b8' }}>—</span>}
                           </td>
+                          <td style={{ padding: '8px 8px', border: '1px solid #e2e8f0', textAlign: 'center', fontSize: '10px', color: '#475569' }}>
+                            {c.subscriptionStart ? `${c.subscriptionStart} إلى ${c.subscriptionEnd || '—'}` : '—'}
+                          </td>
                           <td style={{ padding: '8px 10px', border: '1px solid #e2e8f0', fontWeight: '600', color: '#1e293b' }}>
                             {o.serviceNameAr || 'خدمة غير محددة'}
                           </td>
@@ -281,7 +288,7 @@ function PrintReport({ clients, reportTitle, dateFrom, dateTo, onClose }) {
                     {/* صف المجموع الفرعي للعميل إذا كان لديه أكثر من طلب واحد */}
                     {orders.length > 1 && (
                       <tr key={`subtotal-${c.id}`} style={{ background: '#fefce8', borderTop: '1px solid #fef08a', borderBottom: '2px solid #cbd5e1' }}>
-                        <td colSpan={5} style={{ padding: '7px 12px', border: '1px solid #e2e8f0', fontWeight: '700', color: '#854d0e', textAlign: 'left' }}>
+                        <td colSpan={6} style={{ padding: '7px 12px', border: '1px solid #e2e8f0', fontWeight: '700', color: '#854d0e', textAlign: 'left' }}>
                           مجموع العميل ({c.nameAr}) — {orders.length} طلبات:
                         </td>
                         <td style={{ padding: '7px 8px', border: '1px solid #e2e8f0', textAlign: 'center', fontWeight: '800', color: '#854d0e' }}>
@@ -306,7 +313,7 @@ function PrintReport({ clients, reportTitle, dateFrom, dateTo, onClose }) {
             {/* ── صف الإجمالي الكلي للتقرير ── */}
             <tfoot>
               <tr style={{ background: '#0f172a', color: '#ffffff', fontWeight: '800', fontSize: '12px' }}>
-                <td colSpan={5} style={{ padding: '12px 14px', border: '1px solid #334155', textAlign: 'left' }}>
+                <td colSpan={6} style={{ padding: '12px 14px', border: '1px solid #334155', textAlign: 'left' }}>
                   الإجمالي الكلي للتقرير ({clients.length} عميل · {totalOrders} طلب):
                 </td>
                 <td style={{ padding: '12px 8px', border: '1px solid #334155', textAlign: 'center', color: '#fef08a', fontSize: '13px' }}>
@@ -602,6 +609,16 @@ export default function Clients() {
                     <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{fmt(c.remainingBalance)}</p>
                   </div>
                 </div>
+
+                {/* تاريخ بداية ونهاية الاشتراك على كارت العميل */}
+                {(c.subscriptionStart || c.subscriptionEnd) && (
+                  <div className="mt-3 text-xs bg-slate-50 dark:bg-slate-900/60 rounded-xl px-3 py-1.5 flex items-center justify-between text-slate-500 border border-slate-100 dark:border-slate-800">
+                    <span className="flex items-center gap-1 text-[11px]"><Calendar size={12} className="text-amber-500" /> الاشتراك:</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300 text-[11px]">
+                      {c.subscriptionStart || '—'} إلى {c.subscriptionEnd || '—'}
+                    </span>
+                  </div>
+                )}
               </button>
             </div>
           );
@@ -624,6 +641,41 @@ export default function Clients() {
               >
                 <Printer size={14} /> طباعة التقرير
               </button>
+            </div>
+
+            {/* بطاقة بيانات الاشتراك الشهري في صفحة تفاصيل العميل */}
+            <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl p-3.5 text-xs">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1.5 text-sm">
+                  <Calendar size={15} className="text-amber-600" />
+                  بيانات الاشتراك الشهري
+                </span>
+                {selectedClient.subscriptionStatus === 'active' && (
+                  <span className="text-[11px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 px-2.5 py-0.5 rounded-full font-bold">
+                    اشتراك نشط
+                  </span>
+                )}
+                {selectedClient.subscriptionStatus === 'expired' && (
+                  <span className="text-[11px] bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300 px-2.5 py-0.5 rounded-full font-bold">
+                    اشتراك منتهٍ
+                  </span>
+                )}
+                {(!selectedClient.subscriptionStatus || selectedClient.subscriptionStatus === 'new') && (
+                  <span className="text-[11px] bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-0.5 rounded-full font-semibold">
+                    عميل جديد
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-slate-700 dark:text-slate-300">
+                <div className="bg-white/80 dark:bg-slate-800/80 p-2.5 rounded-lg border border-amber-100 dark:border-slate-700">
+                  <span className="text-slate-400 block text-[11px] mb-0.5">تاريخ بداية الاشتراك:</span>
+                  <span className="font-bold text-sm text-slate-800 dark:text-white">{selectedClient.subscriptionStart || '—'}</span>
+                </div>
+                <div className="bg-white/80 dark:bg-slate-800/80 p-2.5 rounded-lg border border-amber-100 dark:border-slate-700">
+                  <span className="text-slate-400 block text-[11px] mb-0.5">تاريخ نهاية الاشتراك:</span>
+                  <span className="font-bold text-sm text-slate-800 dark:text-white">{selectedClient.subscriptionEnd || '—'}</span>
+                </div>
+              </div>
             </div>
             <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
               <table className="w-full text-sm">

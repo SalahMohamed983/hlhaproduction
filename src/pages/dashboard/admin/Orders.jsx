@@ -109,6 +109,10 @@ function KindFields({ kind, form, set, site }) {
 
 function OrderCard({ order, onClick }) {
   const color = SERVICE_KIND_COLORS[order.serviceKind] ?? '#94a3b8';
+  const assigneesText = order.assignees && order.assignees.length > 0
+    ? order.assignees.map(a => a.nameAr).join('، ')
+    : null;
+
   return (
     <div onClick={onClick} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm hover:shadow-md transition-all cursor-pointer hover:-translate-y-0.5">
       <div className="flex items-start justify-between mb-3">
@@ -117,13 +121,32 @@ function OrderCard({ order, onClick }) {
       </div>
       <h3 className="font-semibold text-slate-800 dark:text-white text-sm mb-1">{order.clientName}</h3>
       <p className="text-xs text-slate-400 mb-3 line-clamp-2">{order.description || ''}</p>
+      
+      {/* اسم منفذ الطلب - ظاهر من الخارج */}
+      <div className="mb-3 flex items-center gap-1.5 text-xs bg-slate-50 dark:bg-slate-700/50 rounded-lg px-2.5 py-1.5 border border-slate-100 dark:border-slate-700">
+        <User size={13} className="text-amber-500 shrink-0" />
+        <span className="text-slate-400 shrink-0">منفذ الطلب:</span>
+        <span className="font-bold text-slate-700 dark:text-slate-200 truncate">
+          {assigneesText || <span className="font-normal italic text-slate-400">غير مسند</span>}
+        </span>
+      </div>
+
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-bold text-amber-500">{Number(order.agreedPrice) > 0 ? fmt(order.agreedPrice) : fmt(order.remainingAmount)}</span>
         <span className="text-xs text-slate-400">↑ {order.dueDate?.split('T')[0]}</span>
       </div>
-      {order.hasDeposit && (
-        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-700">مدفوع جزئياً</span>
-      )}
+
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        {order.hasDeposit && (
+          <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-700">مدفوع جزئياً</span>
+        )}
+        {(order.subscriptionStart || order.subscriptionEnd) && (
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mr-auto">
+            <Calendar size={11} className="text-amber-500" />
+            <span>اشتراك: {order.subscriptionStart?.split('T')[0] || '—'} إلى {order.subscriptionEnd?.split('T')[0] || '—'}</span>
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -189,7 +212,7 @@ function OrderModal({ orderId, onClose, onRefresh, team }) {
       const oldAssignees = order.assignments?.map(a => a.employeeId) || [];
       const added = draft.assigneeIds.filter(id => !oldAssignees.includes(id));
       const removed = oldAssignees.filter(id => !draft.assigneeIds.includes(id));
-      
+
       for (const id of added) {
         await dispatch(assignOrderEmployee({ id: order.id, employeeId: id, assign: true })).unwrap();
       }
@@ -225,6 +248,25 @@ function OrderModal({ orderId, onClose, onRefresh, team }) {
             <div className="grid grid-cols-2 gap-3 text-sm">
               {order.clientPhone && <p className="flex items-center gap-1"><Phone size={13} /> {order.clientPhone}</p>}
               {order.companyName && <p className="flex items-center gap-1"><Building2 size={13} /> {order.companyName}</p>}
+            </div>
+          )}
+          {/* بيانات اشتراك العميل في الطلب */}
+          {(order.subscriptionStart || order.subscriptionEnd) && (
+            <div className="bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl p-3 text-xs space-y-1.5">
+              <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-400">
+                <Calendar size={14} className="text-amber-600" />
+                <span>فترة الاشتراك الشهري للعميل</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-slate-700 dark:text-slate-300">
+                <div>
+                  <span className="text-slate-400 block text-[11px]">بداية الاشتراك:</span>
+                  <span className="font-semibold">{order.subscriptionStart?.split('T')[0] || '—'}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">نهاية الاشتراك:</span>
+                  <span className="font-semibold">{order.subscriptionEnd?.split('T')[0] || '—'}</span>
+                </div>
+              </div>
             </div>
           )}
           {/* Order description (editable) */}
@@ -402,6 +444,8 @@ function NewOrderModal({ onClose, onRefresh, team, services }) {
   const [isExistingClient, setIsExistingClient] = useState(null);
   // حالة الاشتراك: null | 'new' | 'active' | 'expired'
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
+  // خانة تجديد الاشتراك لعميل اشتراكه منتهي
+  const [renewSubscription, setRenewSubscription] = useState(false);
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
   const nextMonthStr = useMemo(() => {
     const d = new Date();
@@ -421,6 +465,7 @@ function NewOrderModal({ onClose, onRefresh, team, services }) {
   const pickClient = async (c) => {
     skipUntilRef.current = Date.now() + 400;
     setIsExistingClient(true);
+    setRenewSubscription(false);
     setForm(prev => ({
       ...prev,
       contactName: c.nameAr || '',
@@ -435,13 +480,11 @@ function NewOrderModal({ onClose, onRefresh, team, services }) {
       const details = await getClient(c.id);
       const subStatus = details?.subscriptionStatus || 'new';
       setSubscriptionStatus(subStatus);
-      if (subStatus === 'expired' || subStatus === 'new') {
-        setForm(prev => ({
-          ...prev,
-          subscriptionStart: todayStr,
-          subscriptionEnd: nextMonthStr,
-        }));
-      }
+      setForm(prev => ({
+        ...prev,
+        subscriptionStart: todayStr,
+        subscriptionEnd: nextMonthStr,
+      }));
     } catch {
       setSubscriptionStatus('new');
     }
@@ -450,18 +493,21 @@ function NewOrderModal({ onClose, onRefresh, team, services }) {
   const handleNameChange = (v) => {
     setIsExistingClient(null);
     setSubscriptionStatus(null);
+    setRenewSubscription(false);
     set('contactName', v);
   };
   const handlePhoneChange = (v) => {
     setIsExistingClient(null);
     setSubscriptionStatus(null);
+    setRenewSubscription(false);
     set('phone', v);
   };
 
   const isRenewal = isExistingClient === true && subscriptionStatus === 'expired';
+  const isRenewalActive = isRenewal && renewSubscription;
   const isNewClient = isExistingClient !== true;
-  const needsSubscription = isNewClient || isRenewal;
-  const showPriceSection = isNewClient || isRenewal;
+  const needsSubscription = isNewClient || isRenewalActive;
+  const showPriceSection = isNewClient || isRenewalActive;
 
   const svc = enabled.find(s => s.id === +form.serviceId);
 
@@ -479,7 +525,7 @@ function NewOrderModal({ onClose, onRefresh, team, services }) {
     if (needsSubscription && !form.subscriptionStart) e.subscriptionStart = 'تاريخ بداية الاشتراك مطلوب';
     setErrors(e);
     if (Object.keys(e).length) return;
-    
+
     try {
       await dispatch(createOrder({
         contactName: form.contactName.trim(),
@@ -514,9 +560,11 @@ function NewOrderModal({ onClose, onRefresh, team, services }) {
   // رسالة توضيحية
   const clientHint = isExistingClient === true && subscriptionStatus === 'active'
     ? '✅ عميل مسجَّل — اشتراكه نشط، سيُضاف الطلب لحسابه الحالي ضمن الاشتراك دون تكلفة إضافية'
+    : isExistingClient === true && subscriptionStatus === 'expired' && !renewSubscription
+    ? '⚠️ عميل باشتراك منتهٍ — يمكنك تفعيل خانة "تجديد الاشتراك" بالأسفل لتجديد الاشتراك وفترته'
     : isExistingClient === true && (subscriptionStatus === null || subscriptionStatus === 'new')
-    ? '✅ عميل مسجَّل — سيُضاف الطلب لحسابه الحالي'
-    : null;
+      ? '✅ عميل مسجَّل — سيُضاف الطلب لحسابه الحالي'
+      : null;
 
   return (
     <Modal open onClose={onClose} title="إضافة طلب خدمة" size="lg">
@@ -588,14 +636,34 @@ function NewOrderModal({ onClose, onRefresh, team, services }) {
         <KindFields kind={svc?.kind} form={form} set={set} site={site} />
         {errors.bloggerId && <p className="text-xs text-red-400">{errors.bloggerId}</p>}
 
-        {/* تنبيه تجديد الاشتراك */}
+        {/* خانة تجديد الاشتراك لعميل اشتراكه منتهٍ */}
         {subscriptionStatus === 'expired' && (
-          <div className="md:col-span-2 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 text-sm text-orange-700">
-            ⚠️ اشتراك العميل منتهٍ — أدخل تواريخ التجديد وسيتم تحديث الاشتراك تلقائياً عند إضافة الطلب
+          <div className="md:col-span-2 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700/60 rounded-xl p-3.5 transition-all">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={renewSubscription}
+                  onChange={e => setRenewSubscription(e.target.checked)}
+                  className="w-4 h-4 text-amber-500 rounded border-slate-300 focus:ring-amber-400"
+                />
+                <div>
+                  <span className="font-bold text-sm text-amber-900 dark:text-amber-200">
+                    تجديد الاشتراك
+                  </span>
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    اشتراك العميل منتهٍ — فعّل هذه الخانة لفتح حقلي بداية ونهاية الاشتراك وإدخال الفترة الجديدة
+                  </p>
+                </div>
+              </label>
+              <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400">
+                منتهٍ
+              </span>
+            </div>
           </div>
         )}
 
-        {/* حقلا الاشتراك — تظهر للعميل الجديد أو عند انتهاء الاشتراك */}
+        {/* حقلا الاشتراك — تظهر للعميل الجديد أو عند تفعيل تجديد الاشتراك */}
         {needsSubscription && (
           <>
             <div>
@@ -651,7 +719,7 @@ export default function Orders() {
   const [view, setView] = useState('kanban');
   const [selectedId, setSelectedId] = useState(null);
   const [showNewOrder, setShowNewOrder] = useState(false);
-  
+
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -755,7 +823,7 @@ export default function Orders() {
             <table className="w-full text-sm min-w-[900px]">
               <thead>
                 <tr className="border-b bg-slate-50 dark:bg-slate-800/50">
-                  {['#', 'العميل', 'الخدمة', 'النوع', 'السعر', 'المدفوع', 'الأولوية', 'الحالة', 'الاستحقاق', ''].map(h => (
+                  {['#', 'العميل', 'الخدمة', 'النوع', 'السعر', 'المدفوع', 'الأولوية', 'الحالة', 'الاستحقاق', 'المنفّذ', 'الاشتراك', ''].map(h => (
                     <th key={h} className="text-right px-4 py-3 text-xs font-semibold text-slate-500">{h}</th>
                   ))}
                 </tr>
@@ -763,6 +831,7 @@ export default function Orders() {
               <tbody className="divide-y">
                 {orders.map(o => {
                   const col = ORDER_STATUSES.find(c => c.id === o.status);
+                  const assignees = o.assignees && o.assignees.length > 0 ? o.assignees.map(a => a.nameAr).join('، ') : null;
                   return (
                     <tr key={o.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                       <td className="px-4 py-3 font-mono text-xs">{o.id}</td>
@@ -774,6 +843,12 @@ export default function Orders() {
                       <td className="px-4 py-3"><Badge type={o.priority} /></td>
                       <td className="px-4 py-3"><span className="text-xs font-bold" style={{ color: col?.color }}>{col?.label}</span></td>
                       <td className="px-4 py-3">{o.dueDate?.split('T')[0]}</td>
+                      <td className="px-4 py-3 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                        {assignees || <span className="text-slate-400 font-normal italic">غير مسند</span>}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                        {o.subscriptionStart ? `${o.subscriptionStart?.split('T')[0]} إلى ${o.subscriptionEnd?.split('T')[0] || '—'}` : '—'}
+                      </td>
                       <td className="px-4 py-3"><button type="button" onClick={() => setSelectedId(o.id)} className="text-xs text-amber-500 font-semibold">تفاصيل</button></td>
                     </tr>
                   );
