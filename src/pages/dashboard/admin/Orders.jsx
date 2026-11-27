@@ -402,12 +402,19 @@ function NewOrderModal({ onClose, onRefresh, team, services }) {
   const [isExistingClient, setIsExistingClient] = useState(null);
   // حالة الاشتراك: null | 'new' | 'active' | 'expired'
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const nextMonthStr = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    return d.toISOString().split('T')[0];
+  }, []);
+
   const [form, setForm] = useState({
     contactName: '', phone: '', companyName: '', email: '',
     serviceId: enabled[0]?.id || '', agreedPrice: '', initialPayment: '', dueDate: '', priority: 'medium',
     assigneeIds: [], description: '', adminNotes: '',
     bloggerId: '', photoPackageId: '', digitalProductId: '',
-    subscriptionStart: '', subscriptionEnd: '',
+    subscriptionStart: todayStr, subscriptionEnd: nextMonthStr,
   });
   const [errors, setErrors] = useState({});
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
@@ -428,6 +435,13 @@ function NewOrderModal({ onClose, onRefresh, team, services }) {
       const details = await getClient(c.id);
       const subStatus = details?.subscriptionStatus || 'new';
       setSubscriptionStatus(subStatus);
+      if (subStatus === 'expired' || subStatus === 'new') {
+        setForm(prev => ({
+          ...prev,
+          subscriptionStart: todayStr,
+          subscriptionEnd: nextMonthStr,
+        }));
+      }
     } catch {
       setSubscriptionStatus('new');
     }
@@ -444,21 +458,24 @@ function NewOrderModal({ onClose, onRefresh, team, services }) {
     set('phone', v);
   };
 
+  const isRenewal = isExistingClient === true && subscriptionStatus === 'expired';
+  const isNewClient = isExistingClient !== true;
+  const needsSubscription = isNewClient || isRenewal;
+  const showPriceSection = isNewClient || isRenewal;
+
   const svc = enabled.find(s => s.id === +form.serviceId);
 
   const handleSubmit = async () => {
     const e = {};
     if (!form.contactName.trim()) e.contactName = 'مطلوب';
     if (!form.serviceId) e.serviceId = 'مطلوب';
-    // السعر مطلوب فقط للعميل الجديد
-    if (!isExistingClient) {
+    // السعر مطلوب للعميل الجديد أو عند تجديد الاشتراك
+    if (showPriceSection) {
       if (!form.agreedPrice || isNaN(+form.agreedPrice)) e.agreedPrice = 'أدخل رقماً';
     }
     if (!form.dueDate) e.dueDate = 'مطلوب';
     if (svc?.kind === 'blogger_ad' && !form.bloggerId) e.bloggerId = 'مطلوب';
-    if (svc?.kind === 'blogger_ad' && !form.bloggerId) e.bloggerId = 'مطلوب';
     // حقلا الاشتراك مطلوبان عند: عميل جديد، أو اشتراك منتهي
-    const needsSubscription = isExistingClient !== true || subscriptionStatus === 'expired';
     if (needsSubscription && !form.subscriptionStart) e.subscriptionStart = 'تاريخ بداية الاشتراك مطلوب';
     setErrors(e);
     if (Object.keys(e).length) return;
@@ -474,11 +491,11 @@ function NewOrderModal({ onClose, onRefresh, team, services }) {
         bloggerId: form.bloggerId ? +form.bloggerId : null,
         photoPackageId: form.photoPackageId ? +form.photoPackageId : null,
         digitalProductId: form.digitalProductId ? +form.digitalProductId : null,
-        // إرسال null للعميل الموجود، رقم للعميل الجديد
-        agreedPrice: isExistingClient ? null : (+form.agreedPrice || 0),
-        initialPayment: !isExistingClient && form.initialPayment ? +form.initialPayment : null,
-        subscriptionStart: form.subscriptionStart || null,
-        subscriptionEnd: form.subscriptionEnd || null,
+        // إرسال السعر فقط عند العميل الجديد أو التجديد، null للعميل ذي الاشتراك النشط
+        agreedPrice: showPriceSection ? (+form.agreedPrice || 0) : null,
+        initialPayment: showPriceSection && form.initialPayment ? +form.initialPayment : null,
+        subscriptionStart: needsSubscription ? (form.subscriptionStart || null) : null,
+        subscriptionEnd: needsSubscription ? (form.subscriptionEnd || null) : null,
         priority: form.priority,
         dueDate: form.dueDate,
         adminNotes: form.adminNotes.trim(),
@@ -494,15 +511,11 @@ function NewOrderModal({ onClose, onRefresh, team, services }) {
 
   const inputCls = (err) => `w-full bg-slate-100 dark:bg-slate-700 border ${err ? 'border-red-400' : 'border-slate-200 dark:border-slate-600'} rounded-xl px-3 py-2.5 text-sm`;
 
-  // هل يظهر قسم السعر؟ — نعم للعميل الجديد، لا للعميل الموجود
-  const showPriceSection = isExistingClient !== true;
-  // هل تظهر حقول الاشتراك؟ — عميل جديد أو اشتراك منتهٍ
-  const needsSubscription = isExistingClient !== true || subscriptionStatus === 'expired';
   // رسالة توضيحية
   const clientHint = isExistingClient === true && subscriptionStatus === 'active'
-    ? '✅ عميل مسجَّل — اشتراكه نشط، سيُضاف الطلب لحسابه الحالي'
+    ? '✅ عميل مسجَّل — اشتراكه نشط، سيُضاف الطلب لحسابه الحالي ضمن الاشتراك دون تكلفة إضافية'
     : isExistingClient === true && (subscriptionStatus === null || subscriptionStatus === 'new')
-    ? '✅ عميل مسجَّل — سيُضاف الطلب لحسابه الحالي بدون سعر جديد'
+    ? '✅ عميل مسجَّل — سيُضاف الطلب لحسابه الحالي'
     : null;
 
   return (
@@ -551,11 +564,13 @@ function NewOrderModal({ onClose, onRefresh, team, services }) {
           </select>
         </div>
 
-        {/* قسم السعر — يظهر للعميل الجديد فقط */}
+        {/* قسم السعر — يظهر للعميل الجديد أو عند تجديد اشتراك منتهي */}
         {showPriceSection && (
           <>
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">السعر المتفق *</label>
+              <label className="text-xs text-slate-400 mb-1 block">
+                {isRenewal ? 'سعر تجديد الاشتراك الشهري *' : 'سعر الاشتراك المتفق عليه *'}
+              </label>
               <input type="number" value={form.agreedPrice} onChange={e => set('agreedPrice', e.target.value)} className={inputCls(errors.agreedPrice)} />
             </div>
             <div>

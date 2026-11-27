@@ -18,12 +18,12 @@ const EXPENSE_CATEGORIES = [
 
 const CATEGORY_COLORS = {
   'اشتراكات برامج': { bg: '#ede9fe', text: '#6d28d9' },
-  'إيجار':           { bg: '#fce7f3', text: '#be185d' },
+  'إيجار': { bg: '#fce7f3', text: '#be185d' },
   'مصاريف تشغيلية': { bg: '#fef3c7', text: '#b45309' },
-  'معدات':           { bg: '#dbeafe', text: '#1d4ed8' },
-  'صيانة':           { bg: '#d1fae5', text: '#065f46' },
-  'تسويق':           { bg: '#fee2e2', text: '#991b1b' },
-  'أخرى':            { bg: '#f1f5f9', text: '#475569' },
+  'معدات': { bg: '#dbeafe', text: '#1d4ed8' },
+  'صيانة': { bg: '#d1fae5', text: '#065f46' },
+  'تسويق': { bg: '#fee2e2', text: '#991b1b' },
+  'أخرى': { bg: '#f1f5f9', text: '#475569' },
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -167,8 +167,8 @@ function printExpenses(expenses, totalExpenses) {
 // طباعة تقرير مدفوعات الطلبات
 // ══════════════════════════════════════════════════════════════════════════════
 function printOrderPayments(orderPayments) {
-  const totalAgreed    = orderPayments.reduce((s, o) => s + (o.agreedPrice ?? 0), 0);
-  const totalPaid      = orderPayments.reduce((s, o) => s + (o.paidAmount ?? 0), 0);
+  const totalAgreed = orderPayments.reduce((s, o) => s + (o.agreedPrice ?? 0), 0);
+  const totalPaid = orderPayments.reduce((s, o) => s + (o.paidAmount ?? 0), 0);
   const totalRemaining = orderPayments.reduce((s, o) => s + (o.remainingAmount ?? 0), 0);
 
   const rows = orderPayments.map((o, i) => `
@@ -364,7 +364,7 @@ function AddExpenseModal({ onClose, onSave }) {
           className={`flex items-center justify-between px-4 py-3 rounded-xl border cursor-pointer transition-all ${form.isRecurring
             ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-700'
             : 'border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/40'
-          }`}
+            }`}
         >
           <div>
             <p className="text-sm font-semibold text-slate-800 dark:text-white">مصروف متكرر</p>
@@ -444,22 +444,20 @@ function ExpenseDetailModal({ expense, onClose }) {
         </div>
 
         {/* نوع المصروف */}
-        <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
-          expense.isRecurring
+        <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${expense.isRecurring
             ? 'border-blue-200 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20'
             : 'border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700/40'
-        }`}>
+          }`}>
           <div>
             <p className="text-sm font-semibold text-slate-800 dark:text-white">نوع المصروف</p>
             <p className="text-xs text-slate-400 mt-0.5">
               {expense.isRecurring ? 'مصروف متكرر (شهري / دوري)' : 'مصروف لمرة واحدة'}
             </p>
           </div>
-          <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${
-            expense.isRecurring
+          <span className={`text-xs font-bold px-3 py-1.5 rounded-full ${expense.isRecurring
               ? 'bg-blue-500 text-white'
               : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300'
-          }`}>
+            }`}>
             {expense.isRecurring ? 'متكرر' : 'غير متكرر'}
           </span>
         </div>
@@ -516,10 +514,10 @@ export default function Financials() {
     }
   };
 
-  const totalExpenses    = expenses.reduce((a, e) => a + (e.amount || 0), 0);
-  const totalPaid        = orderPayments.reduce((s, o) => s + (o.paidAmount ?? 0), 0);
-  const totalRemaining   = orderPayments.reduce((s, o) => s + (o.remainingAmount ?? 0), 0);
-  const totalAgreed      = orderPayments.reduce((s, o) => s + (o.agreedPrice ?? 0), 0);
+  const totalExpenses = expenses.reduce((a, e) => a + (e.amount || 0), 0);
+  const totalPaid = orderPayments.reduce((s, o) => s + (o.paidAmount ?? 0), 0);
+  const totalRemaining = orderPayments.reduce((s, o) => s + (o.remainingAmount ?? 0), 0);
+  const totalAgreed = orderPayments.reduce((s, o) => s + (o.agreedPrice ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -551,8 +549,8 @@ export default function Financials() {
         <div className="grid grid-cols-3 gap-px bg-slate-200 dark:bg-slate-700 border-b border-slate-200 dark:border-slate-700">
           {[
             { label: 'إجمالي المتفق عليه', value: fmt(totalAgreed), color: 'text-amber-600' },
-            { label: 'إجمالي المدفوع',      value: fmt(totalPaid),    color: 'text-emerald-600' },
-            { label: 'إجمالي المتبقي',       value: fmt(totalRemaining), color: totalRemaining > 0 ? 'text-red-500' : 'text-slate-500' },
+            { label: 'إجمالي المدفوع', value: fmt(totalPaid), color: 'text-emerald-600' },
+            { label: 'إجمالي المتبقي', value: fmt(totalRemaining), color: totalRemaining > 0 ? 'text-red-500' : 'text-slate-500' },
           ].map(item => (
             <div key={item.label} className="bg-white dark:bg-slate-800 px-5 py-3">
               <p className="text-xs text-slate-400">{item.label}</p>
@@ -684,3 +682,4 @@ export default function Financials() {
     </div>
   );
 }
+

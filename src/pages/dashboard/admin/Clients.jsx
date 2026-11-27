@@ -574,7 +574,19 @@ export default function Clients() {
                     {c.company && <p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><Building2 size={14} /> {c.company}</p>}
                     {c.phone && <p className="mt-1 flex items-center gap-1 text-sm text-slate-500"><Phone size={14} /> {c.phone}</p>}
                   </div>
-                  <Badge type={c.status === 'Active' ? 'active' : 'low'}>{c.status === 'Active' ? 'نشط' : 'غير نشط'}</Badge>
+                  <div className="flex flex-col items-end gap-1.5">
+                    <Badge type={c.status === 'Active' ? 'active' : 'low'}>{c.status === 'Active' ? 'نشط' : 'غير نشط'}</Badge>
+                    {c.subscriptionStatus === 'active' && (
+                      <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 px-2 py-0.5 rounded-full font-semibold">
+                        اشتراك سارٍ
+                      </span>
+                    )}
+                    {c.subscriptionStatus === 'expired' && (
+                      <span className="text-[10px] bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400 px-2 py-0.5 rounded-full font-semibold">
+                        اشتراك منتهٍ
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                   <div className="rounded-xl bg-slate-50 p-2 dark:bg-slate-900">
