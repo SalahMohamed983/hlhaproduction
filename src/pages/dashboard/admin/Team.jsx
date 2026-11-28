@@ -31,7 +31,6 @@ const MONTHS = [
   { v: 9, l: 'سبتمبر' }, { v: 10, l: 'أكتوبر' }, { v: 11, l: 'نوفمبر' }, { v: 12, l: 'ديسمبر' },
 ];
 const YEARS = [2025, 2026, 2027];
-
 const fmt = n =>
   new Intl.NumberFormat('ar-SA', {
     style: 'currency', currency: 'SAR', maximumFractionDigits: 0,
@@ -659,9 +658,14 @@ export default function Team() {
           <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
             <div>
               <label className="mb-1.5 block text-xs text-slate-400">السنة</label>
-              <select value={year} onChange={e => setYear(+e.target.value)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
-                {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
+              <input
+                type="number"
+                min="2020"
+                max="2100"
+                value={year}
+                onChange={e => { const v = +e.target.value; if (v >= 2020 && v <= 2100) setYear(v); }}
+                className="w-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
+              />
             </div>
             <div>
               <label className="mb-1.5 block text-xs text-slate-400">الشهر</label>
