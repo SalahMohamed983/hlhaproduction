@@ -16,25 +16,10 @@ export default function Overview() {
     dispatch(fetchOverview());
   }, [dispatch]);
 
-  if (!data) {
-    return <div className="py-10 text-center text-slate-500">جاري تحميل البيانات...</div>;
-  }
-
-  const {
-    monthRevenue = 0,
-    monthExpenses = 0,
-    netProfit = 0,
-    margin = 0,
-    activeOrderCount = 0,
-    totalOrders = 0,
-    onTimeRate = 0,
-    monthlySeries = [],
-    ordersByServiceKind = [],
-    alerts = []
-  } = data;
+  const ordersByServiceKind = data?.ordersByServiceKind || [];
 
   const serviceDistribution = useMemo(() => {
-    const raw = ordersByServiceKind || [];
+    const raw = ordersByServiceKind;
     const palette = ['#F59E0B', '#F97316', '#3B82F6', '#8B5CF6', '#10B981', '#06B6D4', '#EC4899', '#6366F1', '#14B8A6'];
     return raw
       .map((item, idx) => {
@@ -49,6 +34,22 @@ export default function Overview() {
   const totalServiceOrders = useMemo(() => {
     return serviceDistribution.reduce((sum, item) => sum + item.value, 0);
   }, [serviceDistribution]);
+
+  if (!data) {
+    return <div className="py-10 text-center text-slate-500">جاري تحميل البيانات...</div>;
+  }
+
+  const {
+    monthRevenue = 0,
+    monthExpenses = 0,
+    netProfit = 0,
+    margin = 0,
+    activeOrderCount = 0,
+    totalOrders = 0,
+    onTimeRate = 0,
+    monthlySeries = [],
+    alerts = []
+  } = data;
 
   return (
     <div className="space-y-6">
