@@ -13,7 +13,7 @@ const STATUSES = [
 ];
 
 function formatDate(iso) {
-  return new Intl.DateTimeFormat('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(iso + 'T12:00:00'));
+  return new Intl.DateTimeFormat('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', calendar: 'gregory' }).format(new Date(iso + 'T12:00:00'));
 }
 
 function shiftDate(iso, days) {
@@ -26,7 +26,7 @@ function mapRows(apiRows) {
   return (apiRows || []).map(r => ({
     member: { id: r.employeeId, name: r.nameAr || '' },
     specialtyNameAr: r.specialtyNameAr || '—',
-    status: r.status || 'present',
+    status: r.status || 'absent',
     checkInTime: (r.checkInTime || '').slice(0, 5),
     notes: r.notes || '',
     monthSummary: r.monthSummary || { present: 0, absent: 0, total: 0 },
