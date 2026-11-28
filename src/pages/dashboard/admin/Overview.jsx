@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { DollarSign, ShoppingCart, Clock, TrendingUp, AlertTriangle } from 'lucide-react';
 import { AreaChart, Area, PieChart, Pie, Cell, Tooltip, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from 'recharts';
 import KpiCard from '@/components/dashboard/ui/KpiCard';
 import { fetchOverview } from '@/store/slices/dashboardSlice';
+import { SERVICE_KIND_LABELS, SERVICE_KIND_COLORS } from '@/data/mockData';
 
 const fmt = n => new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(n ?? 0);
 
@@ -31,6 +32,23 @@ export default function Overview() {
     ordersByServiceKind = [],
     alerts = []
   } = data;
+
+  const serviceDistribution = useMemo(() => {
+    const raw = ordersByServiceKind || [];
+    const palette = ['#F59E0B', '#F97316', '#3B82F6', '#8B5CF6', '#10B981', '#06B6D4', '#EC4899', '#6366F1', '#14B8A6'];
+    return raw
+      .map((item, idx) => {
+        const name = item.name || item.serviceName || SERVICE_KIND_LABELS[item.kind] || item.kind || 'خدمة';
+        const value = Number(item.value ?? item.count ?? item.orderCount ?? 0);
+        const color = item.color || SERVICE_KIND_COLORS[item.kind] || palette[idx % palette.length];
+        return { ...item, name, value, color };
+      })
+      .filter(item => item.value > 0);
+  }, [ordersByServiceKind]);
+
+  const totalServiceOrders = useMemo(() => {
+    return serviceDistribution.reduce((sum, item) => sum + item.value, 0);
+  }, [serviceDistribution]);
 
   return (
     <div className="space-y-6">
@@ -75,27 +93,43 @@ export default function Overview() {
 
         {/* Pie Chart */}
         <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
-          <h2 className="text-base font-bold text-slate-800 dark:text-white mb-4">توزيع الطلبات بالخدمة</h2>
-          {ordersByServiceKind.length > 0 ? (
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-slate-800 dark:text-white">توزيع الطلبات بالخدمة</h2>
+            {totalServiceOrders > 0 && (
+              <span className="text-xs bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5 rounded-full font-bold">
+                {totalServiceOrders} طلب
+              </span>
+            )}
+          </div>
+          {serviceDistribution.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
-                  <Pie data={ordersByServiceKind} dataKey="value" innerRadius={50} outerRadius={80} paddingAngle={3}>
-                    {ordersByServiceKind.map((e, i) => <Cell key={i} fill={e.color || '#3B82F6'}/>)}
+                  <Pie data={serviceDistribution} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={3}>
+                    {serviceDistribution.map((e, i) => <Cell key={i} fill={e.color || '#3B82F6'}/>)}
                   </Pie>
-                  <Tooltip formatter={(v) => v} contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, color: '#f8fafc' }}/>
+                  <Tooltip
+                    formatter={(v, name) => [`${v} طلب (${totalServiceOrders > 0 ? Math.round((v / totalServiceOrders) * 100) : 0}%)`, name || 'الخدمة']}
+                    contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, color: '#f8fafc' }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="space-y-2 mt-2">
-                {ordersByServiceKind.map(e => (
-                  <div key={e.name} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ background: e.color || '#3B82F6' }}/>
-                      <span className="text-slate-600 dark:text-slate-300">{e.name}</span>
+              <div className="space-y-2 mt-3 max-h-52 overflow-y-auto pr-1">
+                {serviceDistribution.map(e => {
+                  const pct = totalServiceOrders > 0 ? Math.round((e.value / totalServiceOrders) * 100) : 0;
+                  return (
+                    <div key={e.name} className="flex items-center justify-between text-sm py-1 border-b border-slate-100 dark:border-slate-700/50 last:border-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: e.color || '#3B82F6' }}/>
+                        <span className="text-slate-600 dark:text-slate-300 truncate text-xs" title={e.name}>{e.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-[11px] text-slate-400 font-medium">{pct}%</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-200 text-xs">{e.value}</span>
+                      </div>
                     </div>
-                    <span className="font-semibold text-slate-700 dark:text-slate-200">{e.value}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           ) : (
