@@ -4,6 +4,7 @@ import {
   LayoutGrid, Table, Plus, X, Search, Calendar,
   Banknote, User, Flag, CheckCircle, UserPlus, UserMinus,
   FileText, Phone, Building2, Filter, ExternalLink, RefreshCw,
+  Edit2, Check, CreditCard,
 } from 'lucide-react';
 import { useSiteContent } from '@/context/SiteContentContext';
 import {
@@ -11,7 +12,7 @@ import {
 } from '@/data/mockData';
 import Badge from '@/components/dashboard/ui/Badge';
 import Modal from '@/components/dashboard/ui/Modal';
-import { fetchOrders, fetchOrder, createOrder, updateOrder, updateOrderStatus, assignOrderEmployee } from '@/store/slices/ordersSlice';
+import { fetchOrders, fetchOrder, createOrder, updateOrder, updateOrderStatus, assignOrderEmployee, recordOrderPayment } from '@/store/slices/ordersSlice';
 import { fetchServices } from '@/store/slices/servicesSlice';
 import { fetchEmployees } from '@/store/slices/employeesSlice';
 import { getClients, getClient } from '@/api/clients';
@@ -159,6 +160,17 @@ function OrderModal({ orderId, onClose, onRefresh, team }) {
   const [draft, setDraft] = useState({});
   const [modalRefresh, setModalRefresh] = useState(0);
 
+  const [isEditingPrice, setIsEditingPrice] = useState(false);
+  const [priceVal, setPriceVal] = useState('');
+  const [savingPrice, setSavingPrice] = useState(false);
+  const [priceError, setPriceError] = useState('');
+
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [recordingPayment, setRecordingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const [paymentSuccessMsg, setPaymentSuccessMsg] = useState('');
+
   const reloadOrder = () => setModalRefresh(s => s + 1);
 
   useEffect(() => {
@@ -167,6 +179,11 @@ function OrderModal({ orderId, onClose, onRefresh, team }) {
       .unwrap()
       .then(res => {
         setOrder(res);
+        setPriceVal(res.agreedPrice != null ? String(res.agreedPrice) : '');
+        setPaymentAmount(res.remainingAmount > 0 ? String(res.remainingAmount) : '');
+        setPriceError('');
+        setPaymentError('');
+        setPaymentSuccessMsg('');
         setDraft({
           priority: res.priority,
           dueDate: res.dueDate?.split('T')[0] || '',
@@ -187,18 +204,75 @@ function OrderModal({ orderId, onClose, onRefresh, team }) {
 
   const setField = (key, val) => setDraft(prev => ({ ...prev, [key]: val }));
 
+  const handleSavePrice = async () => {
+    const num = Number(priceVal);
+    if (isNaN(num) || num <= 0) {
+      setPriceError('يرجى إدخال سعر اشتراك صحيح أكبر من 0');
+      return;
+    }
+    if (order.paidAmount && num < order.paidAmount) {
+      setPriceError(`لا يمكن تقليل السعر عن المبلغ المدفوع بالفعل (${fmt(order.paidAmount)})`);
+      return;
+    }
+    setSavingPrice(true);
+    setPriceError('');
+    try {
+      await dispatch(updateOrder({
+        id: order.id,
+        data: { agreedPrice: num }
+      })).unwrap();
+      setIsEditingPrice(false);
+      reloadOrder();
+      onRefresh();
+    } catch (err) {
+      setPriceError(err?.message || 'حدث خطأ أثناء تعديل السعر');
+    } finally {
+      setSavingPrice(false);
+    }
+  };
+
+  const handleRecordPayment = async () => {
+    const amt = Number(paymentAmount);
+    if (isNaN(amt) || amt <= 0) {
+      setPaymentError('يرجى إدخال مبلغ صحيح أكبر من 0');
+      return;
+    }
+    if (amt > Number(order.remainingAmount)) {
+      setPaymentError(`المبلغ المدخل يتجاوز المتبقي (${fmt(order.remainingAmount)})`);
+      return;
+    }
+    setRecordingPayment(true);
+    setPaymentError('');
+    setPaymentSuccessMsg('');
+    try {
+      await dispatch(recordOrderPayment({
+        id: order.id,
+        data: {
+          amount: amt,
+          paymentDate: new Date().toISOString().split('T')[0],
+          method: paymentMethod,
+        }
+      })).unwrap();
+      setPaymentSuccessMsg('تم تسجيل الدفعة بنجاح وتحديث الحساب!');
+      reloadOrder();
+      onRefresh();
+    } catch (err) {
+      setPaymentError(err?.message || 'حدث خطأ أثناء تسجيل الدفعة');
+    } finally {
+      setRecordingPayment(false);
+    }
+  };
+
   const handleSave = async () => {
     try {
       if (draft.status !== order.status) {
         await dispatch(updateOrderStatus({ id: order.id, status: draft.status })).unwrap();
       }
-      const canEditPrice = order.status === 'new_lead' && Number(order.agreedPrice) > 0;
       await dispatch(updateOrder({
         id: order.id,
         data: {
           priority: draft.priority,
           dueDate: draft.dueDate,
-          ...(canEditPrice ? { agreedPrice: +draft.agreedPrice || 0 } : {}),
           description: draft.description,
           adminNotes: draft.adminNotes,
           bloggerId: draft.bloggerId || null,
@@ -280,17 +354,149 @@ function OrderModal({ orderId, onClose, onRefresh, team }) {
               className="w-full rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/40 px-3 py-2 text-sm resize-none focus:outline-none focus:border-amber-400"
             />
           </div>
-          <div className="bg-slate-50 dark:bg-slate-700/60 rounded-xl p-4 space-y-2 border">
-            <div className="flex items-center gap-2"><Banknote size={15} className="text-amber-500" /><h4 className="text-sm font-bold">معلومات الحساب</h4></div>
-            {order.status === 'new_lead' && Number(order.agreedPrice) > 0 ? (
-              <input type="number" value={draft.agreedPrice} onChange={e => setField('agreedPrice', e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm dark:bg-slate-800" />
-            ) : Number(order.agreedPrice) > 0 ? (
-              <div className="text-sm">السعر المتفق: <b className="text-amber-500">{fmt(order.agreedPrice)}</b></div>
-            ) : null}
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>مدفوع الفاتورة: <b className="text-emerald-600">{fmt(order.paidAmount)}</b></div>
-              <div>المتبقي: <b>{fmt(order.remainingAmount)}</b></div>
+          <div className="bg-slate-50 dark:bg-slate-700/60 rounded-xl p-4 space-y-3 border">
+            <div className="flex items-center gap-2">
+              <Banknote size={15} className="text-amber-500" />
+              <h4 className="text-sm font-bold">معلومات الحساب والاشتراك</h4>
             </div>
+
+            {/* سعر الاشتراك مع زر التعديل */}
+            <div className="border-b border-slate-200 dark:border-slate-600/70 pb-3">
+              {!isEditingPrice ? (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 block mb-0.5">سعر الاشتراك المتفق عليه</span>
+                    <b className="text-amber-500 text-base font-bold">{fmt(order.agreedPrice)}</b>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPriceVal(order.agreedPrice != null ? String(order.agreedPrice) : '');
+                      setPriceError('');
+                      setIsEditingPrice(true);
+                    }}
+                    className="px-2.5 py-1 text-xs font-semibold text-amber-700 bg-amber-100/70 hover:bg-amber-200/70 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50 rounded-lg flex items-center gap-1 transition-colors"
+                  >
+                    <Edit2 size={12} /> تعديل السعر
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 block">
+                    تعديل سعر الاشتراك:
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={order.paidAmount || 0}
+                      value={priceVal}
+                      onChange={e => setPriceVal(e.target.value)}
+                      placeholder="أدخل السعر الجديد"
+                      className="w-full rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 font-semibold"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      disabled={savingPrice}
+                      onClick={handleSavePrice}
+                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1 transition-colors disabled:opacity-50"
+                    >
+                      <Check size={13} /> {savingPrice ? 'جاري...' : 'حفظ'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingPrice}
+                      onClick={() => {
+                        setPriceVal(order.agreedPrice != null ? String(order.agreedPrice) : '');
+                        setPriceError('');
+                        setIsEditingPrice(false);
+                      }}
+                      className="px-2.5 py-1.5 bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold whitespace-nowrap transition-colors"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                  {priceError && (
+                    <p className="text-[11px] text-red-500 font-medium">{priceError}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* تفاصيل المدفوع والمتبقي */}
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-xs text-slate-400 block mb-0.5">مدفوع الفاتورة</span>
+                <b className="text-emerald-600 text-sm font-bold">{fmt(order.paidAmount)}</b>
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 block mb-0.5">المتبقي على الاشتراك</span>
+                <b className={Number(order.remainingAmount) > 0 ? "text-red-500 text-sm font-bold" : "text-emerald-600 text-sm font-bold"}>
+                  {fmt(order.remainingAmount)}
+                </b>
+              </div>
+            </div>
+
+            {/* تسجيل سداد باقي المديونية */}
+            {Number(order.remainingAmount) > 0 ? (
+              <div className="pt-3 border-t border-dashed border-amber-200 dark:border-amber-800/60 space-y-2 bg-amber-50/60 dark:bg-amber-950/20 p-3 rounded-xl border border-amber-200/70 dark:border-amber-800/40">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-800 dark:text-amber-400 flex items-center gap-1">
+                    <CreditCard size={13} className="text-amber-600" /> تحصيل باقي المديونية
+                  </span>
+                  <span className="text-[11px] bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 px-2 py-0.5 rounded-full font-bold">
+                    متبقي: {fmt(order.remainingAmount)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  سجل الدفعة عند استلام باقي المبلغ من العميل ليصبح الاشتراك مسدداً بالكامل.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">المبلغ المحصّل (ج.م)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={order.remainingAmount}
+                      value={paymentAmount}
+                      onChange={e => setPaymentAmount(e.target.value)}
+                      placeholder={`المتبقي: ${order.remainingAmount}`}
+                      className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-400 font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-500 dark:text-slate-400 block mb-1">طريقة الدفع</label>
+                    <select
+                      value={paymentMethod}
+                      onChange={e => setPaymentMethod(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-400"
+                    >
+                      <option value="cash">نقداً (كاش)</option>
+                      <option value="bank_transfer">تحويل بنكي</option>
+                      <option value="vodafone_cash">فودافون كاش</option>
+                      <option value="instapay">إنستاباي</option>
+                    </select>
+                  </div>
+                </div>
+                {paymentError && <p className="text-[11px] text-red-500 font-medium">{paymentError}</p>}
+                {paymentSuccessMsg && <p className="text-[11px] text-emerald-600 font-medium">{paymentSuccessMsg}</p>}
+                <button
+                  type="button"
+                  disabled={recordingPayment || !paymentAmount || Number(paymentAmount) <= 0}
+                  onClick={handleRecordPayment}
+                  className="w-full mt-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors disabled:opacity-50 shadow-sm"
+                >
+                  <CheckCircle size={13} /> {recordingPayment ? 'جاري تسجيل الدفعة...' : 'تسجيل الدفعة وتحديث الحساب'}
+                </button>
+              </div>
+            ) : (
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800/40">
+                  <CheckCircle size={14} className="text-emerald-600 flex-shrink-0" />
+                  <span>الاشتراك مدفوع بالكامل — لا توجد مديونية متبقية</span>
+                </div>
+              </div>
+            )}
           </div>
           <KindFields kind={order.serviceKind} form={draft} set={setField} site={site} />
           <div>

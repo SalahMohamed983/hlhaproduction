@@ -44,3 +44,10 @@ export async function assignOrderEmployee(id, employeeId, assign) {
     body: JSON.stringify({ employeeId, assign }),
   });
 }
+
+export async function recordOrderPayment(id, data) {
+  return apiClient(`/api/orders/${id}/payments`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}

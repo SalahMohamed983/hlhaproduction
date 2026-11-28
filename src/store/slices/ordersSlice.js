@@ -10,6 +10,9 @@ export const updateOrderStatus = createAsyncThunk('orders/status', ({ id, status
 export const assignOrderEmployee = createAsyncThunk('orders/assign', ({ id, employeeId, assign }) =>
   api.assignOrderEmployee(id, employeeId, assign)
 );
+export const recordOrderPayment = createAsyncThunk('orders/payment', ({ id, data }) =>
+  api.recordOrderPayment(id, data)
+);
 
 const ordersSlice = createSlice({
   name: 'orders',
