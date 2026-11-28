@@ -36,7 +36,7 @@ function mapRows(apiRows) {
 export default function Attendance() {
   const dispatch = useDispatch();
   const day = useSelector((s) => s.attendance.day);
-  const [date, setDate] = useState('2026-09-27');
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [savedHint, setSavedHint] = useState('');
   const [rows, setRows] = useState([]);
 

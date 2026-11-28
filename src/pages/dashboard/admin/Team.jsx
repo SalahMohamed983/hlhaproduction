@@ -454,8 +454,8 @@ export default function Team() {
   const [team, setTeam] = useState([]);
   const [hrView, setHrView] = useState(false);
   const [employeeModal, setEmployeeModal] = useState(null);
-  const [year, setYear] = useState(2026);
-  const [month, setMonth] = useState(9);
+  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [month, setMonth] = useState(() => new Date().getMonth() + 1);
   const [employmentFilter, setEmploymentFilter] = useState('working');
   const [specOpen, setSpecOpen] = useState(false);
   const [newSpec, setNewSpec] = useState('');
@@ -668,17 +668,6 @@ export default function Team() {
               <select value={month} onChange={e => setMonth(+e.target.value)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white">
                 {MONTHS.map(m => <option key={m.v} value={m.v}>{m.l}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs text-slate-400">عدد أيام العمل</label>
-              <input
-                type="number"
-                min="1"
-                max="31"
-                value={workDays}
-                onChange={e => persistWorkDays(e.target.value)}
-                className="w-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-white"
-              />
             </div>
             <div>
               <label className="mb-1.5 block text-xs text-slate-400">عرض</label>
